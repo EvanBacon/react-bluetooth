@@ -1,0 +1,8 @@
+.DS_Store
+.vscode
+node_modules/
+screenshots/
+npm-debug.log
+yarn-error.log
+__tests__/
+babel.config.js
