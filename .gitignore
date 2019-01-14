@@ -1,7 +1,7 @@
 node_modules/**/*
 .expo/*
-dist/
-build/
 npm-debug.*
+dist/
 .vscode
 yarn-error.log
+build/

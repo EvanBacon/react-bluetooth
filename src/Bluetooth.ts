@@ -30,6 +30,10 @@ export enum BluetoothEvent {
   onServiceRemoved = 'onserviceremoved',
 }
 
+export type Subscription = { remove: () => void };
+
+let platformListeners: { [eventName: string]: PlatformHandler[] } = {};
+
 export const isCapable = 'bluetooth' in navigator;
 
 /* TODO: Bacon: Web: This will show a modal and allow you to select one. We may need to build a custom component to do this on native. */
@@ -61,13 +65,33 @@ export function getReferringDevice(): BluetoothDevice | undefined {
   return platformModule().referringDevice;
 }
 
+export function addPlatformHandler(
+  eventName: BluetoothEvent,
+  handler: PlatformHandler
+): Subscription {
+  if (!(eventName in platformListeners)) {
+    platformListeners[eventName] = [];
+  }
+  platformListeners[eventName].push(handler);
+
+  return {
+    remove() {
+      const index = platformListeners[eventName].indexOf(handler);
+      if (index !== -1) {
+        platformListeners[eventName].splice(index, 1);
+      }
+    },
+  };
+}
+
+/* In theory these event listeners shouldn't matter */
+
 // type: 'availabilitychanged'
 export function addEventListener(
-  type: string,
   listener: EventListenerOrEventListenerObject,
   useCapture?: boolean
 ): void {
-  platformModule().addEventListener(type, listener, useCapture);
+  platformModule().addEventListener('availabilitychanged', listener, useCapture);
 }
 
 export function dispatchEvent(event: Event): boolean {
@@ -75,19 +99,10 @@ export function dispatchEvent(event: Event): boolean {
 }
 
 export function removeEventListener(
-  type: string,
   callback: EventListenerOrEventListenerObject | null,
   options?: EventListenerOptions | boolean
 ): void {
-  platformModule().removeEventListener(type, callback, options);
-}
-
-export function setPlatformHandler(eventName: BluetoothEvent, handler: PlatformHandler): void {
-  platformModule()[eventName] = handler;
-}
-
-export function getPlatformHandler(eventName: BluetoothEvent): PlatformHandler {
-  return platformModule()[eventName];
+  platformModule().removeEventListener('availabilitychanged', callback, options);
 }
 
 function platformModule(): Bluetooth {
@@ -96,45 +111,24 @@ function platformModule(): Bluetooth {
   return _navigator.bluetooth;
 }
 
-async function example_GetAnyDeviceAsync() {
-  try {
-    const device = await requestDeviceAsync();
-    console.log('Success: Got any device: ', device);
-  } catch (error) {
-    console.log(`Error: Couldn't get any device`, error);
-    console.error(`Error: Couldn't get any device`, error);
+function _setupHandlers() {
+  const events = [
+    BluetoothEvent.onAvailabilityChanged,
+    BluetoothEvent.onGATTServerDisconnected,
+    BluetoothEvent.onCharacteristicValueChanged,
+    BluetoothEvent.onServiceAdded,
+    BluetoothEvent.onServiceChanged,
+    BluetoothEvent.onServiceRemoved,
+  ];
+  for (const eventName of events) {
+    /* This could be messy if the developer redefines these values */
+    platformModule()[eventName] = (...event) => {
+      const subscriptions = platformListeners[eventName];
+      for (const subscription of subscriptions) {
+        subscription(...event);
+      }
+    };
   }
 }
 
-async function example_GetBatteryLevelAsync() {
-  const options = {
-    filters: [{ services: ['battery_service'] }],
-  };
-
-  try {
-    const result = await requestDeviceAsync(options);
-    if (result.type === 'cancel') {
-      return;
-    }
-    const { device } = result;
-
-    console.log(`Bluetooth: Got device:`, device);
-    if (device.gatt) {
-      const server = await device.gatt.connect();
-      console.log(`Bluetooth: Got server:`, server);
-      const service = await server.getPrimaryService('battery_service');
-      console.log(`Bluetooth: Got service:`, service);
-      const characteristic = await service.getCharacteristic('battery_level');
-      console.log(`Bluetooth: Got characteristic:`, characteristic);
-      const value = await characteristic.readValue();
-      console.log(`Bluetooth: Got value:`, value);
-      const battery = value.getUint8(0);
-      console.log(`Success: Got battery:`, battery);
-    } else {
-      // TODO: Bacon: Can we connect to the GATT or is that a no-op?
-      console.error(`Error: connected device did not have a GATT`);
-    }
-  } catch ({ message }) {
-    console.error(`Error: Couldn't get battery level: ${message}`);
-  }
-}
+_setupHandlers();
