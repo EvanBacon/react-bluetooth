@@ -1,8 +1,10 @@
 .DS_Store
 .vscode
+
 node_modules/
-screenshots/
+example/
+__tests__/
+
 npm-debug.log
 yarn-error.log
-__tests__/
 babel.config.js
