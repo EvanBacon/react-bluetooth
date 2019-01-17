@@ -4,6 +4,8 @@
 
 > WIP: This library is not ready for use in any projects
 
+Please check the [Browser Compatibility](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#Browser_compatibility) before using.
+
 # react-bluetooth
 
 Tools to integrate the current [web Bluetooth API spec](https://webbluetoothcg.github.io/web-bluetooth/) in your React web applications.
